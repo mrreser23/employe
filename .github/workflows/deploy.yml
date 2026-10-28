@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - feature/dev
+      - 'feature/**'
   pull_request:
     branches:
       - main
@@ -32,10 +32,21 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: Compiler, tester et generer la couverture
+      - name: Compiler et tester
+        if: github.ref != 'refs/heads/main'
         run: mvn -B -ntp clean verify
 
+      - name: Compiler, tester et analyser avec Sonar
+        if: github.ref == 'refs/heads/main'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >-
+          mvn -B -ntp clean verify sonar:sonar
+          "-Dsonar.java.jdkHome=$JAVA_HOME"
+          -Dsonar.qualitygate.wait=true
+
       - name: Conserver le JAR et les rapports
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: resultats-build
@@ -44,4 +55,4 @@ jobs:
             target/site/jacoco/
             target/surefire-reports/
           retention-days: 7
-          if-no-files-found: error
+          if-no-files-found: warn
